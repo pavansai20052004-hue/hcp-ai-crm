@@ -1,0 +1,44 @@
+### Health
+GET http://localhost:8000/health
+
+### List HCPs
+GET http://localhost:8000/hcps
+
+### List interactions for an HCP
+GET http://localhost:8000/interactions?hcp_id=1
+
+### Insights for an HCP
+GET http://localhost:8000/insights/summary?hcp_id=1
+
+### Log interaction
+POST http://localhost:8000/interactions
+Content-Type: application/json
+
+{
+  "hcp_id": 1,
+  "channel": "In person",
+  "interaction_type": "Detailing",
+  "raw_notes": "Discussed CardioFlow access and efficacy. HCP asked for payer support and a follow-up next week.",
+  "products": ["CardioFlow"],
+  "topics": ["efficacy", "access"],
+  "follow_up_owner": "Field Rep"
+}
+
+### Agent chat
+POST http://localhost:8000/agent/chat
+Content-Type: application/json
+
+{
+  "hcp_id": 1,
+  "message": "Met the doctor today. They requested approved efficacy data and a short follow-up email."
+}
+
+### Run compliance review
+POST http://localhost:8000/agent/tools/compliance_review
+Content-Type: application/json
+
+{
+  "hcp_id": 1,
+  "payload": {}
+}
+
