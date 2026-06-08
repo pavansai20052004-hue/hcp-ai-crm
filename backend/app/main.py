@@ -1,12 +1,15 @@
 from contextlib import asynccontextmanager
+from time import perf_counter
 
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from sqlalchemy.orm import Session
 
 from app.ai import TOOL_DESCRIPTIONS, ToolName, run_agent
 from app.config import get_settings
-from app.db import get_db, init_db
+from app.db import check_db, get_db, init_db
 from app.models import HCP, Interaction
 from app.schemas import (
     AgentChatRequest,
@@ -26,20 +29,59 @@ async def lifespan(app: FastAPI):
 
 
 settings = get_settings()
-app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
+app = FastAPI(title=settings.app_name, version=settings.app_version, lifespan=lifespan)
+
+app.add_middleware(GZipMiddleware, minimum_size=1000)
+if settings.trusted_host_list:
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_host_list)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origin_list,
+    allow_origin_regex=settings.cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 
+@app.middleware("http")
+async def add_platform_headers(request: Request, call_next):
+    started = perf_counter()
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers["X-Process-Time-Ms"] = f"{(perf_counter() - started) * 1000:.2f}"
+    return response
+
+
+@app.get("/")
+def root() -> dict[str, str | bool]:
+    return {
+        "message": "AI-First HCP CRM backend is running",
+        "version": settings.app_version,
+        "environment": settings.environment,
+        "demo_seed_enabled": settings.seed_demo_data,
+        "health": "/health",
+        "ready": "/ready",
+        "docs": "/docs",
+        "hcps": "/hcps",
+    }
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok", "model": settings.groq_model}
+
+
+@app.get("/ready")
+def ready() -> dict[str, str | bool]:
+    try:
+        db_ready = check_db()
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail=f"Database not ready: {exc}") from exc
+    return {"status": "ready", "database": db_ready, "model": settings.groq_model}
 
 
 @app.get("/agent/tools")

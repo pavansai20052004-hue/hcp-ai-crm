@@ -139,6 +139,21 @@ h2 {
   color: #29436f;
 }
 
+.modelBadge.api {
+  background: #edf8f5;
+  color: #1d5e4d;
+}
+
+.modelBadge.api.checking {
+  background: #f4f0ff;
+  color: #4a367c;
+}
+
+.modelBadge.api.offline {
+  background: #fff2f0;
+  color: #7a2017;
+}
+
 .systemStatus {
   background: #dceee7;
   color: #184536;

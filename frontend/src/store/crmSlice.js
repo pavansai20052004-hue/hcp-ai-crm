@@ -1,22 +1,41 @@
 import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
+const API_URL = (import.meta.env.VITE_API_URL || "http://localhost:8000").replace(/\/+$/, "");
 
 async function api(path, options = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    },
-    ...options
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), options.timeoutMs || 12000);
+  const { timeoutMs, ...fetchOptions } = options;
 
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(detail || "API request failed");
+  try {
+    const response = await fetch(`${API_URL}${path}`, {
+      headers: {
+        "Content-Type": "application/json",
+        ...(fetchOptions.headers || {})
+      },
+      ...fetchOptions,
+      signal: fetchOptions.signal || controller.signal
+    });
+
+    if (!response.ok) {
+      const detail = await response.text();
+      throw new Error(formatApiError(response.status, detail));
+    }
+    return response.json();
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(`Backend timed out at ${API_URL}. Check the Render service health.`);
+    }
+    if (error instanceof TypeError) {
+      throw new Error(`Cannot reach backend at ${API_URL}. Check VITE_API_URL and CORS_ORIGINS.`);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeout);
   }
-  return response.json();
 }
+
+export const fetchHealth = createAsyncThunk("crm/fetchHealth", async () => api("/health", { timeoutMs: 6000 }));
 
 export const fetchHcps = createAsyncThunk("crm/fetchHcps", async () => api("/hcps"));
 
@@ -71,6 +90,10 @@ const initialState = {
   selectedTab: "form",
   status: "idle",
   error: null,
+  apiHealth: {
+    status: "checking",
+    model: null
+  },
   chatMessages: [
     {
       role: "agent",
@@ -116,6 +139,22 @@ const crmSlice = createSlice({
       .addCase(fetchHcps.rejected, (state, action) => {
         state.error = action.error.message;
         state.status = "error";
+      })
+      .addCase(fetchHealth.pending, (state) => {
+        state.apiHealth.status = "checking";
+      })
+      .addCase(fetchHealth.fulfilled, (state, action) => {
+        state.apiHealth = {
+          status: "connected",
+          model: action.payload.model
+        };
+      })
+      .addCase(fetchHealth.rejected, (state, action) => {
+        state.apiHealth = {
+          status: "offline",
+          model: null
+        };
+        state.error = action.error.message;
       })
       .addCase(fetchInteractions.fulfilled, (state, action) => {
         state.interactions = action.payload;
@@ -205,6 +244,15 @@ function buildInsights(interactions) {
       .slice(0, 4)
       .map(([name, count]) => ({ name, count }))
   };
+}
+
+function formatApiError(status, detail) {
+  try {
+    const parsed = JSON.parse(detail);
+    return parsed.detail ? `${status}: ${parsed.detail}` : `${status}: API request failed`;
+  } catch {
+    return detail ? `${status}: ${detail}` : `${status}: API request failed`;
+  }
 }
 
 export const { clearError, pushUserMessage, selectHcp, selectTab } = crmSlice.actions;

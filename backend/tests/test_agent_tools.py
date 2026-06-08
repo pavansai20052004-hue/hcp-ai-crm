@@ -11,6 +11,14 @@ from app.main import app
 
 def test_agent_tools_end_to_end():
     with TestClient(app) as client:
+        health = client.get("/health")
+        assert health.status_code == 200
+        assert health.json()["status"] == "ok"
+
+        ready = client.get("/ready")
+        assert ready.status_code == 200
+        assert ready.json()["database"] is True
+
         hcps = client.get("/hcps")
         assert hcps.status_code == 200
         hcp_id = hcps.json()[0]["id"]
@@ -46,4 +54,3 @@ def test_agent_tools_end_to_end():
         )
         assert edited.status_code == 200
         assert edited.json()["result"]["interaction"]["sentiment"] == "Interested"
-

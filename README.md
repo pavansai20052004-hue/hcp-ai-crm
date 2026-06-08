@@ -32,6 +32,25 @@ Bonus tool: `compliance_review` checks the latest interaction for off-label, adv
 - API smoke tests
 - Dockerfiles and one-command PowerShell demo startup
 - Architecture docs and REST request collection
+- Production readiness endpoint at `/ready`
+- Cloud-safe PostgreSQL URL normalization for Neon and Render
+- Security and timing headers on backend responses
+- Frontend backend-health badge and actionable API error messages
+- Vercel, Render, and Neon deployment configuration
+
+## Cloud Deployment
+
+This repository is ready for a three-service production deployment:
+
+- Neon for PostgreSQL
+- Render for the FastAPI backend
+- Vercel for the React frontend
+
+Deployment files:
+
+- `render.yaml` for the Render backend service
+- `vercel.json` for the Vercel frontend build
+- `docs/DEPLOYMENT.md` for exact cloud commands and environment variables
 
 ## Run Locally
 

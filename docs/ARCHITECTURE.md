@@ -19,12 +19,24 @@ flowchart LR
   API --> UI
 ```
 
+## Production Deployment Topology
+
+```mermaid
+flowchart LR
+  Browser["Browser"] --> Vercel["Vercel Static Frontend"]
+  Vercel --> Render["Render FastAPI Backend"]
+  Render --> Neon["Neon PostgreSQL"]
+  Render --> Groq["Groq gemma2-9b-it"]
+```
+
 ## Backend
 
 - `app/main.py` exposes FastAPI endpoints.
 - `app/ai.py` defines the LangGraph agent, router, tool registry, LLM calls, and deterministic fallback behavior.
 - `app/models.py` stores HCP profiles and interaction intelligence.
 - `app/seed.py` creates realistic demo HCP records.
+- `/ready` verifies database connectivity for cloud health checks.
+- Backend configuration normalizes Neon/Render PostgreSQL URLs to the `psycopg` SQLAlchemy driver.
 
 ## LangGraph Tools
 
@@ -51,4 +63,4 @@ flowchart LR
 - Interactions store auditable raw notes and AI-derived fields separately.
 - Compliance flags are visible in the timeline and available through a dedicated tool.
 - The API is documented automatically at `/docs`.
-
+- CORS, trusted hosts, readiness checks, security headers, and cloud env examples are configured for deployment.

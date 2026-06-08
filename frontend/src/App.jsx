@@ -1,5 +1,5 @@
 import { useEffect, useMemo } from "react";
-import { Activity, BrainCircuit, ClipboardList, MessageSquareText, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, BrainCircuit, ClipboardList, MessageSquareText, Server, ShieldCheck, Sparkles } from "lucide-react";
 import { useDispatch, useSelector } from "react-redux";
 
 import AgentChat from "./components/AgentChat.jsx";
@@ -8,17 +8,18 @@ import InteractionForm from "./components/InteractionForm.jsx";
 import InteractionTimeline from "./components/InteractionTimeline.jsx";
 import InsightsStrip from "./components/InsightsStrip.jsx";
 import ToolConsole from "./components/ToolConsole.jsx";
-import { fetchHcps, fetchInsights, fetchInteractions, selectTab } from "./store/crmSlice.js";
+import { fetchHcps, fetchHealth, fetchInsights, fetchInteractions, selectTab } from "./store/crmSlice.js";
 
 export default function App() {
   const dispatch = useDispatch();
-  const { hcps, interactions, selectedHcpId, selectedTab, status, error } = useSelector((state) => state.crm);
+  const { apiHealth, hcps, interactions, selectedHcpId, selectedTab, status, error } = useSelector((state) => state.crm);
   const selectedHcp = useMemo(
     () => hcps.find((hcp) => hcp.id === selectedHcpId),
     [hcps, selectedHcpId]
   );
 
   useEffect(() => {
+    dispatch(fetchHealth());
     dispatch(fetchHcps());
   }, [dispatch]);
 
@@ -53,7 +54,15 @@ export default function App() {
           <div className="statusCluster">
             <span className="modelBadge">
               <Sparkles size={15} />
-              Groq gemma2-9b-it
+              Groq {apiHealth.model || "gemma2-9b-it"}
+            </span>
+            <span className={`modelBadge api ${apiHealth.status}`}>
+              <Server size={15} />
+              {apiHealth.status === "connected"
+                ? "API Connected"
+                : apiHealth.status === "offline"
+                  ? "API Offline"
+                  : "API Checking"}
             </span>
             <span className="modelBadge compliance">
               <ShieldCheck size={15} />
